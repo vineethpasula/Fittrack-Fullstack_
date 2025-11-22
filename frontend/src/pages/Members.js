@@ -7,6 +7,7 @@ import {
   deleteMember,
 } from "../api";
 
+
 const emptyMember = {
   first_name: "",
   last_name: "",
