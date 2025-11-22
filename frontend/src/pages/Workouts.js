@@ -7,7 +7,7 @@ import {
   deleteWorkout,
 } from "../api";
 
-const emptyWorkout = {
+const baseEmptyWorkout = {
   user_id: "",
   workout_date: "",
   workout_type: "",
@@ -17,23 +17,33 @@ const emptyWorkout = {
 };
 
 function Workouts({ currentUser }) {
+  const role = currentUser?.role || "member";
+  const isAdmin = role === "admin";
+  const isTrainer = role === "trainer";
+  const isMember = role === "member";
+
+  // helper so members always default to their own ID
+  const makeEmptyWorkout = () => ({
+    ...baseEmptyWorkout,
+    user_id:
+      isMember && currentUser?.user_id
+        ? String(currentUser.user_id)
+        : "",
+  });
+
   const [workouts, setWorkouts] = useState([]);
-  const [form, setForm] = useState(emptyWorkout);
-  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(makeEmptyWorkout);
+  const [editingId, setEditingId] = useState(null); // log_id when editing
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [showForm, setShowForm] = useState(false);
-
-  const isAdmin = currentUser?.role === "admin";
-  const isTrainer = currentUser?.role === "trainer";
-  const isMember = currentUser?.role === "member";
 
   const load = async () => {
     try {
       setLoading(true);
       setErr("");
       const data = await fetchWorkouts();
-      setWorkouts(data);
+      setWorkouts(data || []);
     } catch (e) {
       setErr(e.message || "Failed to load workouts");
     } finally {
@@ -43,57 +53,67 @@ function Workouts({ currentUser }) {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // keep member's own ID pre-filled in the form
-  const resetForm = () => {
-    setForm({
-      ...emptyWorkout,
-      user_id: isMember ? currentUser.user_id : "",
-    });
+  // if user/role changes (shouldn’t normally), reset form defaults
+  useEffect(() => {
+    setForm(makeEmptyWorkout());
     setEditingId(null);
+  }, [currentUser?.user_id, role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleChange = (field) => (e) => {
+    setForm((f) => ({ ...f, [field]: e.target.value }));
+  };
+
+  const startCreate = () => {
+    setEditingId(null);
+    setForm(makeEmptyWorkout());
+    setShowForm(true);
     setErr("");
   };
 
-  // ensure member user_id is always fixed
-  useEffect(() => {
-    if (isMember) {
-      setForm((prev) => ({
-        ...prev,
-        user_id: currentUser.user_id,
-      }));
-    }
-  }, [isMember, currentUser]);
-
-  const handleChange = (field) => (e) => {
-    const value = e.target.value;
-    setForm((f) => ({ ...f, [field]: value }));
+  const handleCancel = () => {
+    setEditingId(null);
+    setForm(makeEmptyWorkout());
+    setShowForm(false);
+    setErr("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     try {
-      if (!form.user_id || !form.workout_date || !form.workout_type) {
-        setErr("User ID, date and workout type are required");
+      // basic required fields
+      if (!form.workout_date || !form.workout_type) {
+        setErr("Workout date and type are required.");
         return;
       }
 
-      // members can only create/update their own logs
-      if (isMember && Number(form.user_id) !== currentUser.user_id) {
-        setErr("You can only create or edit your own workout logs.");
-        return;
+      // user_id rules:
+      // - member: always their own id, ignore whatever is in form.user_id
+      // - admin/trainer: must provide a user id
+      let userIdForPayload;
+      if (isMember) {
+        if (!currentUser?.user_id) {
+          setErr("Your user account is missing an ID.");
+          return;
+        }
+        userIdForPayload = Number(currentUser.user_id);
+      } else {
+        if (!form.user_id) {
+          setErr("User ID is required.");
+          return;
+        }
+        userIdForPayload = Number(form.user_id);
       }
-
-      setErr("");
 
       const payload = {
-        user_id: Number(form.user_id),
+        user_id: userIdForPayload,
         workout_date: form.workout_date,
         workout_type: form.workout_type,
         duration_minutes: Number(form.duration_minutes || 0),
         calories_burned: Number(form.calories_burned || 0),
-        notes: form.notes,
+        notes: form.notes || "",
       };
 
       if (editingId) {
@@ -103,24 +123,24 @@ function Workouts({ currentUser }) {
       }
 
       await load();
-      resetForm(); // leave showForm as-is so they can add another
+      handleCancel(); // resets + hides form
     } catch (e) {
       setErr(e.message || "Failed to save workout");
     }
   };
 
   const handleEdit = (w) => {
-    // members cannot edit others' logs
-    if (isMember && w.user_id !== currentUser.user_id) {
-      setErr("You can only edit your own workout logs.");
+    // safety: members should not be able to edit someone else’s row
+    if (isMember && String(w.user_id) !== String(currentUser?.user_id)) {
       return;
     }
 
     setEditingId(w.log_id);
     setShowForm(true);
+    setErr("");
 
     setForm({
-      user_id: w.user_id ?? "",
+      user_id: String(w.user_id ?? ""),
       workout_date: w.workout_date || "",
       workout_type: w.workout_type || "",
       duration_minutes:
@@ -136,13 +156,12 @@ function Workouts({ currentUser }) {
   };
 
   const handleDelete = async (w) => {
-    if (!window.confirm(`Delete workout log #${w.log_id}?`)) return;
-
-    if (isMember && w.user_id !== currentUser.user_id) {
-      alert("You can only delete your own workout logs.");
+    // safety: members should not delete someone else’s log
+    if (isMember && String(w.user_id) !== String(currentUser?.user_id)) {
       return;
     }
 
+    if (!window.confirm(`Delete workout log #${w.log_id}?`)) return;
     try {
       await deleteWorkout(w.log_id);
       await load();
@@ -151,71 +170,79 @@ function Workouts({ currentUser }) {
     }
   };
 
-  // Admin & trainer: see all; Member: only own workouts
-  const filteredWorkouts = workouts.filter((w) => {
-    if (isAdmin || isTrainer) return true;
-    if (isMember) return w.user_id === currentUser.user_id;
-    return false;
-  });
+  // What each role can see
+  const visibleWorkouts = isMember
+    ? workouts.filter(
+        (w) => String(w.user_id) === String(currentUser?.user_id)
+      )
+    : workouts;
 
-  const totalWorkouts = filteredWorkouts.length;
+  const visibleCount = visibleWorkouts.length;
+  const totalCount = workouts.length;
+  const showAllHint = isMember && totalCount !== visibleCount;
 
   return (
     <div>
       <h2 className="page-title">Workout Logs</h2>
 
+      {/* Top summary row + button */}
       <div
         style={{
-          textAlign: "right",
-          marginBottom: 8,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12,
           color: "#6b7280",
           fontSize: "0.9rem",
         }}
       >
-        Total Workout Logs: <strong>{totalWorkouts}</strong>
-      </div>
-
-      {/* Button to show/hide the form */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: 12,
-        }}
-      >
-        <button
-          type="button"
-          className="btn btn-outline"
-          onClick={() => {
-            if (!showForm) {
-              // opening fresh: clean form
-              resetForm();
-            }
-            setShowForm((prev) => !prev);
-          }}
-        >
-          {showForm ? "Hide Form" : "Add Workout Log"}
+        <div>
+          Total Workout Logs: <strong>{visibleCount}</strong>
+          {showAllHint && (
+            <span style={{ marginLeft: 8, fontSize: "0.8rem" }}>
+              (All in system: {totalCount})
+            </span>
+          )}
+        </div>
+        <button className="btn btn-primary" onClick={startCreate}>
+          {editingId ? "Edit Workout Log" : "Add Workout Log"}
         </button>
       </div>
 
+      {/* Form card – only when user clicks the button */}
       {showForm && (
         <div className="form-section">
           <h3 style={{ marginBottom: 10 }}>
             {editingId ? "Edit Workout Log" : "Add New Workout Log"}
           </h3>
-          {err && <div style={{ color: "red", marginBottom: 8 }}>{err}</div>}
+          {err && (
+            <div style={{ color: "red", marginBottom: 8 }}>{err}</div>
+          )}
+
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
               <div className="form-field">
                 <label>User ID</label>
                 <input
                   type="number"
-                  value={form.user_id}
-                  onChange={handleChange("user_id")}
-                  required
+                  value={
+                    isMember && currentUser?.user_id
+                      ? String(currentUser.user_id)
+                      : form.user_id
+                  }
+                  onChange={
+                    isMember ? undefined : handleChange("user_id")
+                  }
                   disabled={isMember}
+                  placeholder={
+                    isMember
+                      ? "Your ID is fixed for your workout logs"
+                      : "Enter member user ID"
+                  }
+                  required
                 />
               </div>
+
               <div className="form-field">
                 <label>Workout Date</label>
                 <input
@@ -226,6 +253,7 @@ function Workouts({ currentUser }) {
                   required
                 />
               </div>
+
               <div className="form-field">
                 <label>Workout Type</label>
                 <input
@@ -236,6 +264,7 @@ function Workouts({ currentUser }) {
                   required
                 />
               </div>
+
               <div className="form-field">
                 <label>Duration (minutes)</label>
                 <input
@@ -244,6 +273,7 @@ function Workouts({ currentUser }) {
                   onChange={handleChange("duration_minutes")}
                 />
               </div>
+
               <div className="form-field">
                 <label>Calories Burned</label>
                 <input
@@ -252,6 +282,7 @@ function Workouts({ currentUser }) {
                   onChange={handleChange("calories_burned")}
                 />
               </div>
+
               <div className="form-field" style={{ gridColumn: "1 / -1" }}>
                 <label>Notes</label>
                 <textarea
@@ -269,10 +300,7 @@ function Workouts({ currentUser }) {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={() => {
-                  resetForm();
-                  setShowForm(false);
-                }}
+                onClick={handleCancel}
               >
                 Cancel
               </button>
@@ -281,6 +309,7 @@ function Workouts({ currentUser }) {
         </div>
       )}
 
+      {/* Table */}
       {loading ? (
         <div>Loading workouts…</div>
       ) : (
@@ -299,7 +328,7 @@ function Workouts({ currentUser }) {
               </tr>
             </thead>
             <tbody>
-              {filteredWorkouts.map((w) => (
+              {visibleWorkouts.map((w) => (
                 <tr key={w.log_id}>
                   <td>{w.log_id}</td>
                   <td>{w.user_id}</td>
@@ -325,7 +354,7 @@ function Workouts({ currentUser }) {
                   </td>
                 </tr>
               ))}
-              {filteredWorkouts.length === 0 && (
+              {visibleWorkouts.length === 0 && (
                 <tr>
                   <td colSpan={8}>No workout logs found.</td>
                 </tr>
