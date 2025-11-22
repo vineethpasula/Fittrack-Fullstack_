@@ -1,70 +1,228 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# FitTrack Fullstack Application
 
-## Available Scripts
+A complete full-stack fitness management system built for **CS 665 – Database Systems** project requirements.  
+The system includes **React frontend**, **Flask backend**, **SQLite database**, and full **CRUD operations** across all major entities.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## 📌 Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### **1. User Roles & Access Control**
+The system supports 3 roles with restricted access:
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+| Role     | Capabilities |
+|----------|--------------|
+| **Admin** | Full access to all modules (Members, Trainers, Classes, Workouts, Payments, Registrations, Dashboard) |
+| **Trainer** | Can view members, view workouts assigned to them, and update workouts |
+| **Member** | Can only view their own workouts and profile details |
 
-### `npm test`
+Role-based UI restrictions are enforced in React using `currentRole`.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 📌 2. Technology Stack
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### **Frontend**
+- React.js
+- React Router
+- Chart.js
+- CSS custom UI
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### **Backend**
+- Python Flask
+- Flask-CORS
+- SQLite3 database
+- REST API architecture
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### **Database**
+SQLite with 8 tables:
+- Members
+- Trainers
+- Classes
+- Workouts
+- Payments
+- Registrations
+- Memberships
+- Dashboard statistics views
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 📌 3. CRUD Functionality
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Each module includes:
+- Create  
+- Read  
+- Update  
+- Delete  
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Modules:
+- Members  
+- Trainers  
+- Classes  
+- Workouts  
+- Registrations  
+- Payments  
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+All tested via React UI and Flask API.
 
-## Learn More
+---
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 📌 4. Dashboard
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+The dashboard displays:
+- Total users  
+- Total memberships  
+- Total classes  
+- Total payments  
+- Bar chart of membership plans  
 
-### Code Splitting
+Chart.js is used for visualization.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+---
 
-### Analyzing the Bundle Size
+## 📌 5. Authentication (Simplified for Project Requirements)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Login page using email + role selection.  
+Current user details stored in:
 
-### Making a Progressive Web App
+```
+localStorage.setItem("currentUser", JSON.stringify(user));
+localStorage.setItem("currentRole", user.role);
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Used throughout the React app for UI restrictions.
 
-### Advanced Configuration
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## 📌 6. How to Run
 
-### Deployment
+### **Backend (Flask)**
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
+```
 
-### `npm run build` fails to minify
+Runs at:
+```
+http://localhost:5000
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+---
+
+### **Frontend (React)**
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Runs at:
+```
+http://localhost:3000
+```
+
+---
+
+## 📌 7. Database Setup
+
+Database is auto-created on first run.
+
+To reset the DB:
+
+```bash
+rm fittrack.db
+python app.py
+```
+
+Tables are created using SQL definitions in the backend.
+
+---
+
+## 📌 8. GitHub Commit Requirements
+
+The project includes **10+ meaningful commits**, such as:
+- “Initialized Flask backend”
+- “Added CRUD operations for classes”
+- “Integrated React with Flask API”
+- “Implemented role-based access control”
+- “UI update for workouts module”
+
+---
+
+## 📌 9. Project Folder Structure
+
+```
+FITTRACK-FULLSTACK/
+│
+├── backend/
+│   ├── app.py
+│   ├── config.py
+│   ├── models.py
+│   ├── fittrack_seed.sql
+│   ├── fittrack.db
+│   ├── requirements.txt
+│   └── venv/
+│
+├── frontend/
+│   ├── public/
+│   ├── node_modules/
+│   └── src/
+│       ├── api.js
+│       ├── App.js
+│       ├── App.test.js
+│       ├── index.js
+│       ├── index.css
+│       ├── components/
+│       │   └── ClassForm.js
+│       └── pages/
+│           ├── Login.js
+│           ├── Dashboard.js
+│           ├── Classes.js
+│           ├── Members.js
+│           ├── Payments.js
+│           ├── Trainers.js
+│           ├── Registrations.js
+│           ├── Workouts.js
+├── package.json
+├──package-lock.json
+└── README.md
+
+```
+
+---
+
+## 📌 10. Screenshots Included
+
+The project includes UI screenshots:
+- Dashboard  
+- CRUD pages  
+- Role login  
+- Restricted access  
+
+---
+
+## 📌 11. Instructor Requirements Covered
+
+✔ Full-stack design  
+✔ Database creation  
+✔ Inserted data (10 rows per table)  
+✔ CRUD  
+✔ Frontend–backend integration  
+✔ GitHub commits  
+✔ Final submission ZIP  
+
+---
+
+## 📌 12. Author
+
+**Vineeth Pasula**  
+CS 665 – Database Systems  
+Wichita State University  
+
+---
+
+## ✔ End of README
