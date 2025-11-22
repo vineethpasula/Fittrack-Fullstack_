@@ -19,15 +19,14 @@ const emptyPayment = {
 function Payments() {
   const [payments, setPayments] = useState([]);
   const [form, setForm] = useState(emptyPayment);
-  const [editingId, setEditingId] = useState(null); // will hold payment_id
+  const [editingId, setEditingId] = useState(null); // payment_id
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [showForm, setShowForm] = useState(false); // NEW: toggle for form
+  const [showForm, setShowForm] = useState(false);
 
   const load = async () => {
     try {
       setLoading(true);
-      setErr("");
       const data = await fetchPayments();
       setPayments(data);
     } catch (e) {
@@ -48,7 +47,7 @@ function Payments() {
   const resetForm = () => {
     setForm(emptyPayment);
     setEditingId(null);
-    // keep showForm as user chooses with the button
+    setShowForm(false);
   };
 
   const handleSubmit = async (e) => {
@@ -77,7 +76,6 @@ function Payments() {
 
   const handleEdit = (p) => {
     setEditingId(p.payment_id);
-    setShowForm(true); // NEW: open form when editing
     setForm({
       payment_id: p.payment_id,
       membership_id: p.membership_id,
@@ -86,6 +84,7 @@ function Payments() {
       method: p.method,
       status: p.status,
     });
+    setShowForm(true);
   };
 
   const handleDelete = async (p) => {
@@ -117,27 +116,38 @@ function Payments() {
         <strong>${sum.toFixed(2)}</strong>
       </div>
 
-      {/* Toggle button for form */}
-      <button
-        className="btn btn-primary"
-        style={{ marginBottom: 16 }}
-        onClick={() => setShowForm((prev) => !prev)}
-      >
-        {showForm ? "Hide Payment Form" : "Add New Payment"}
-      </button>
-
-      {/* Form shown only when toggled on */}
-      {showForm && (
-        <div className="form-section">
-          <h3 style={{ marginBottom: 10 }}>
+      <div className="form-section">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <h3 style={{ margin: 0 }}>
             {editingId ? "Edit Payment" : "Add New Payment"}
           </h3>
-          {err && <div style={{ color: "red", marginBottom: 8 }}>{err}</div>}
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              if (showForm || editingId) {
+                resetForm();
+              } else {
+                setShowForm(true);
+              }
+            }}
+          >
+            {showForm || editingId ? "Hide Form" : "Add New Payment"}
+          </button>
+        </div>
+
+        {(showForm || editingId) && (
           <form onSubmit={handleSubmit}>
             <div className="form-grid-4">
               <div className="form-field">
                 <label>Payment ID</label>
-                {/* read-only; shown only when editing */}
                 <input
                   type="number"
                   value={form.payment_id}
@@ -194,7 +204,7 @@ function Payments() {
               <button type="submit" className="btn btn-primary">
                 {editingId ? "Update Payment" : "Create Payment"}
               </button>
-              {editingId && (
+              {(editingId || showForm) && (
                 <button
                   type="button"
                   className="btn btn-outline"
@@ -205,8 +215,8 @@ function Payments() {
               )}
             </div>
           </form>
-        </div>
-      )}
+        )}
+      </div>
 
       {loading ? (
         <div>Loading payments…</div>

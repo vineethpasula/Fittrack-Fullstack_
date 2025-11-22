@@ -16,13 +16,17 @@ const emptyWorkout = {
   notes: "",
 };
 
-function Workouts() {
+function Workouts({ currentUser }) {
   const [workouts, setWorkouts] = useState([]);
   const [form, setForm] = useState(emptyWorkout);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [showForm, setShowForm] = useState(false); // NEW: controls form visibility
+  const [showForm, setShowForm] = useState(false);
+
+  const isAdmin = currentUser?.role === "admin";
+  const isTrainer = currentUser?.role === "trainer";
+  const isMember = currentUser?.role === "member";
 
   const load = async () => {
     try {
@@ -41,23 +45,46 @@ function Workouts() {
     load();
   }, []);
 
-  const handleChange = (field) => (e) => {
-    setForm((f) => ({ ...f, [field]: e.target.value }));
+  // keep member's own ID pre-filled in the form
+  const resetForm = () => {
+    setForm({
+      ...emptyWorkout,
+      user_id: isMember ? currentUser.user_id : "",
+    });
+    setEditingId(null);
+    setErr("");
   };
 
-  const resetForm = () => {
-    setForm(emptyWorkout);
-    setEditingId(null);
-    // we leave showForm as-is so the user controls it with the button
+  // ensure member user_id is always fixed
+  useEffect(() => {
+    if (isMember) {
+      setForm((prev) => ({
+        ...prev,
+        user_id: currentUser.user_id,
+      }));
+    }
+  }, [isMember, currentUser]);
+
+  const handleChange = (field) => (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, [field]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
       if (!form.user_id || !form.workout_date || !form.workout_type) {
         setErr("User ID, date and workout type are required");
         return;
       }
+
+      // members can only create/update their own logs
+      if (isMember && Number(form.user_id) !== currentUser.user_id) {
+        setErr("You can only create or edit your own workout logs.");
+        return;
+      }
+
       setErr("");
 
       const payload = {
@@ -74,16 +101,24 @@ function Workouts() {
       } else {
         await createWorkout(payload);
       }
+
       await load();
-      resetForm();
+      resetForm(); // leave showForm as-is so they can add another
     } catch (e) {
       setErr(e.message || "Failed to save workout");
     }
   };
 
   const handleEdit = (w) => {
+    // members cannot edit others' logs
+    if (isMember && w.user_id !== currentUser.user_id) {
+      setErr("You can only edit your own workout logs.");
+      return;
+    }
+
     setEditingId(w.log_id);
-    setShowForm(true); // NEW: ensure form is visible when editing
+    setShowForm(true);
+
     setForm({
       user_id: w.user_id ?? "",
       workout_date: w.workout_date || "",
@@ -102,6 +137,12 @@ function Workouts() {
 
   const handleDelete = async (w) => {
     if (!window.confirm(`Delete workout log #${w.log_id}?`)) return;
+
+    if (isMember && w.user_id !== currentUser.user_id) {
+      alert("You can only delete your own workout logs.");
+      return;
+    }
+
     try {
       await deleteWorkout(w.log_id);
       await load();
@@ -110,7 +151,14 @@ function Workouts() {
     }
   };
 
-  const totalWorkouts = workouts.length;
+  // Admin & trainer: see all; Member: only own workouts
+  const filteredWorkouts = workouts.filter((w) => {
+    if (isAdmin || isTrainer) return true;
+    if (isMember) return w.user_id === currentUser.user_id;
+    return false;
+  });
+
+  const totalWorkouts = filteredWorkouts.length;
 
   return (
     <div>
@@ -127,16 +175,29 @@ function Workouts() {
         Total Workout Logs: <strong>{totalWorkouts}</strong>
       </div>
 
-      {/* Toggle button */}
-      <button
-        className="btn btn-primary"
-        style={{ marginBottom: 16 }}
-        onClick={() => setShowForm((prev) => !prev)}
+      {/* Button to show/hide the form */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 12,
+        }}
       >
-        {showForm ? "Hide Workout Form" : "Add New Workout Log"}
-      </button>
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={() => {
+            if (!showForm) {
+              // opening fresh: clean form
+              resetForm();
+            }
+            setShowForm((prev) => !prev);
+          }}
+        >
+          {showForm ? "Hide Form" : "Add Workout Log"}
+        </button>
+      </div>
 
-      {/* Form is conditionally rendered */}
       {showForm && (
         <div className="form-section">
           <h3 style={{ marginBottom: 10 }}>
@@ -152,6 +213,7 @@ function Workouts() {
                   value={form.user_id}
                   onChange={handleChange("user_id")}
                   required
+                  disabled={isMember}
                 />
               </div>
               <div className="form-field">
@@ -204,15 +266,16 @@ function Workouts() {
               <button type="submit" className="btn btn-primary">
                 {editingId ? "Update Workout" : "Create Workout"}
               </button>
-              {editingId && (
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={resetForm}
-                >
-                  Cancel
-                </button>
-              )}
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => {
+                  resetForm();
+                  setShowForm(false);
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </form>
         </div>
@@ -236,7 +299,7 @@ function Workouts() {
               </tr>
             </thead>
             <tbody>
-              {workouts.map((w) => (
+              {filteredWorkouts.map((w) => (
                 <tr key={w.log_id}>
                   <td>{w.log_id}</td>
                   <td>{w.user_id}</td>
@@ -262,7 +325,7 @@ function Workouts() {
                   </td>
                 </tr>
               ))}
-              {workouts.length === 0 && (
+              {filteredWorkouts.length === 0 && (
                 <tr>
                   <td colSpan={8}>No workout logs found.</td>
                 </tr>

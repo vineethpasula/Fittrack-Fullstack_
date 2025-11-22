@@ -14,13 +14,15 @@ const emptyRegistration = {
   status: "registered",
 };
 
-function Registrations() {
+function Registrations({ currentUser }) {
   const [registrations, setRegistrations] = useState([]);
   const [form, setForm] = useState(emptyRegistration);
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [showForm, setShowForm] = useState(false); // NEW: toggle for form
+  const [showForm, setShowForm] = useState(false);
+
+  const isMember = currentUser?.role === "member";
 
   const load = async () => {
     try {
@@ -44,10 +46,21 @@ function Registrations() {
   };
 
   const resetForm = () => {
-    setForm(emptyRegistration);
+    setForm((prev) => ({
+      ...emptyRegistration,
+      // for members, always fix their own user_id
+      user_id: isMember ? currentUser?.user_id || "" : "",
+    }));
     setEditingId(null);
-    // leave showForm as user controls it from the button
+    setShowForm(false);
   };
+
+  useEffect(() => {
+    // initialize user_id for member
+    if (isMember) {
+      setForm((f) => ({ ...f, user_id: currentUser?.user_id || "" }));
+    }
+  }, [isMember, currentUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,13 +92,13 @@ function Registrations() {
 
   const handleEdit = (r) => {
     setEditingId(r.registration_id);
-    setShowForm(true); // NEW: open form when editing
     setForm({
       class_id: r.class_id ?? "",
       user_id: r.user_id ?? "",
       registered_at: r.registered_at || "",
       status: r.status || "registered",
     });
+    setShowForm(true);
   };
 
   const handleDelete = async (r) => {
@@ -100,6 +113,11 @@ function Registrations() {
 
   const totalRegistrations = registrations.length;
 
+  // members only see their own registrations
+  const visibleRegistrations = isMember
+    ? registrations.filter((r) => r.user_id === currentUser?.user_id)
+    : registrations;
+
   return (
     <div>
       <h2 className="page-title">Class Registrations</h2>
@@ -112,84 +130,110 @@ function Registrations() {
           fontSize: "0.9rem",
         }}
       >
-        Total Registrations: <strong>{totalRegistrations}</strong>
+        Total Registrations: <strong>{visibleRegistrations.length}</strong>{" "}
+        {isMember ? null : (
+          <span style={{ marginLeft: 6, fontSize: "0.8rem" }}>
+            (All in system: {totalRegistrations})
+          </span>
+        )}
       </div>
 
-      {/* Toggle button for form */}
-      <button
-        className="btn btn-primary"
-        style={{ marginBottom: 16 }}
-        onClick={() => setShowForm((prev) => !prev)}
-      >
-        {showForm ? "Hide Registration Form" : "Add New Registration"}
-      </button>
-
-      {/* Conditionally render form */}
-      {showForm && (
-        <div className="form-section">
-          <h3 style={{ marginBottom: 10 }}>
+      <div className="form-section">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <h3 style={{ margin: 0 }}>
             {editingId ? "Edit Registration" : "Add New Registration"}
           </h3>
-          {err && <div style={{ color: "red", marginBottom: 8 }}>{err}</div>}
-          <form onSubmit={handleSubmit}>
-            <div className="form-grid">
-              <div className="form-field">
-                <label>Class ID</label>
-                <input
-                  type="number"
-                  value={form.class_id}
-                  onChange={handleChange("class_id")}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label>User ID</label>
-                <input
-                  type="number"
-                  value={form.user_id}
-                  onChange={handleChange("user_id")}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label>Registered At</label>
-                <input
-                  type="text"
-                  value={form.registered_at}
-                  onChange={handleChange("registered_at")}
-                  placeholder="2024-07-01 09:00"
-                />
-              </div>
-              <div className="form-field">
-                <label>Status</label>
-                <select
-                  value={form.status}
-                  onChange={handleChange("status")}
-                >
-                  <option value="registered">registered</option>
-                  <option value="attended">attended</option>
-                  <option value="cancelled">cancelled</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="submit" className="btn btn-primary">
-                {editingId ? "Update Registration" : "Create Registration"}
-              </button>
-              {editingId && (
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={resetForm}
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              if (showForm || editingId) {
+                resetForm();
+              } else {
+                setShowForm(true);
+              }
+            }}
+          >
+            {showForm || editingId ? "Hide Form" : "Add New Registration"}
+          </button>
         </div>
-      )}
+
+        {(showForm || editingId) && (
+          <>
+            {err && <div style={{ color: "red", marginBottom: 8 }}>{err}</div>}
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                <div className="form-field">
+                  <label>Class ID</label>
+                  <input
+                    type="number"
+                    value={form.class_id}
+                    onChange={handleChange("class_id")}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>User ID</label>
+                  <input
+                    type="number"
+                    value={form.user_id}
+                    onChange={handleChange("user_id")}
+                    required
+                    disabled={isMember}
+                  />
+                  {isMember && (
+                    <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+                      (Your ID is fixed when registering for a class)
+                    </div>
+                  )}
+                </div>
+                <div className="form-field">
+                  <label>Registered At</label>
+                  <input
+                    type="text"
+                    value={form.registered_at}
+                    onChange={handleChange("registered_at")}
+                    placeholder="2024-07-01 09:00"
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Status</label>
+                  <select
+                    value={form.status}
+                    onChange={handleChange("status")}
+                  >
+                    <option value="registered">registered</option>
+                    <option value="attended">attended</option>
+                    <option value="cancelled">cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="submit" className="btn btn-primary">
+                  {editingId ? "Update Registration" : "Create Registration"}
+                </button>
+                {(editingId || showForm) && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={resetForm}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </>
+        )}
+      </div>
 
       {loading ? (
         <div>Loading registrations…</div>
@@ -207,7 +251,7 @@ function Registrations() {
               </tr>
             </thead>
             <tbody>
-              {registrations.map((r) => (
+              {visibleRegistrations.map((r) => (
                 <tr key={r.registration_id}>
                   <td>{r.registration_id}</td>
                   <td>{r.class_id}</td>
@@ -231,7 +275,7 @@ function Registrations() {
                   </td>
                 </tr>
               ))}
-              {registrations.length === 0 && (
+              {visibleRegistrations.length === 0 && (
                 <tr>
                   <td colSpan={6}>No registrations found.</td>
                 </tr>

@@ -17,7 +17,7 @@ function Classes() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [showForm, setShowForm] = useState(false); // NEW: toggle for form
+  const [showForm, setShowForm] = useState(false);
 
   const load = async () => {
     try {
@@ -43,7 +43,7 @@ function Classes() {
   const resetForm = () => {
     setForm(emptyClass);
     setEditingId(null);
-    // leave showForm as user controls it using the button
+    setShowForm(false);
   };
 
   const handleSubmit = async (e) => {
@@ -63,7 +63,6 @@ function Classes() {
 
   const handleEdit = (c) => {
     setEditingId(c.class_id);
-    setShowForm(true); // open the form when editing
     setForm({
       title: c.title || "",
       trainer_id: c.trainer_id || "",
@@ -72,6 +71,7 @@ function Classes() {
       end_time: c.end_time || "",
       location: c.location || "",
     });
+    setShowForm(true);
   };
 
   const handleDelete = async (c) => {
@@ -101,24 +101,35 @@ function Classes() {
         Total Classes: <strong>{totalClasses}</strong>
       </div>
 
-      {/* Toggle button for form */}
-      <button
-        className="btn btn-primary"
-        style={{ marginBottom: 16 }}
-        onClick={() => setShowForm((prev) => !prev)}
-      >
-        {showForm ? "Hide Class Form" : "Add New Class"}
-      </button>
-
-      {/* Only show form when toggled on */}
-      {showForm && (
-        <div className="form-section">
-          <h3 style={{ marginBottom: 10 }}>
+      {/* form card with toggle button */}
+      <div className="form-section">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <h3 style={{ margin: 0 }}>
             {editingId ? "Edit Class" : "Add New Class"}
           </h3>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              if (showForm || editingId) {
+                resetForm();
+              } else {
+                setShowForm(true);
+              }
+            }}
+          >
+            {showForm || editingId ? "Hide Form" : "Add New Class"}
+          </button>
+        </div>
 
-          {err && <div style={{ color: "red", marginBottom: 8 }}>{err}</div>}
-
+        {(showForm || editingId) && (
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
               <div className="form-field">
@@ -181,7 +192,7 @@ function Classes() {
               <button type="submit" className="btn btn-primary">
                 {editingId ? "Update Class" : "Create Class"}
               </button>
-              {editingId && (
+              {(editingId || showForm) && (
                 <button
                   type="button"
                   className="btn btn-outline"
@@ -192,8 +203,8 @@ function Classes() {
               )}
             </div>
           </form>
-        </div>
-      )}
+        )}
+      </div>
 
       {loading ? (
         <div>Loading classes…</div>

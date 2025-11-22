@@ -7,7 +7,6 @@ import {
   deleteMember,
 } from "../api";
 
-
 const emptyMember = {
   first_name: "",
   last_name: "",
@@ -18,10 +17,10 @@ const emptyMember = {
 function Members() {
   const [members, setMembers] = useState([]);
   const [form, setForm] = useState(emptyMember);
-  const [editingId, setEditingId] = useState(null); // will hold user_id
+  const [editingId, setEditingId] = useState(null); // user_id
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [showForm, setShowForm] = useState(false); // NEW: toggle form
+  const [showForm, setShowForm] = useState(false);
 
   const load = async () => {
     try {
@@ -46,14 +45,13 @@ function Members() {
   const resetForm = () => {
     setForm(emptyMember);
     setEditingId(null);
-    // keep showForm as user controls it with the button
+    setShowForm(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (editingId) {
-        // editingId is user_id
         await updateMember(editingId, form);
       } else {
         await createMember(form);
@@ -66,22 +64,20 @@ function Members() {
   };
 
   const handleEdit = (m) => {
-    // use m.user_id, not m.id
     setEditingId(m.user_id);
-    setShowForm(true); // NEW: open form when editing
     setForm({
       first_name: m.first_name,
       last_name: m.last_name,
       email: m.email,
       role: m.role,
     });
+    setShowForm(true);
   };
 
   const handleDelete = async (m) => {
     if (!window.confirm(`Delete member "${m.first_name} ${m.last_name}"?`))
       return;
     try {
-      // use m.user_id, not m.id
       await deleteMember(m.user_id);
       await load();
     } catch (e) {
@@ -106,21 +102,34 @@ function Members() {
         Total Members: <strong>{totalMembers}</strong>
       </div>
 
-      {/* Toggle button for the form */}
-      <button
-        className="btn btn-primary"
-        style={{ marginBottom: 16 }}
-        onClick={() => setShowForm((prev) => !prev)}
-      >
-        {showForm ? "Hide Member Form" : "Add New Member"}
-      </button>
-
-      {/* Conditionally render the form */}
-      {showForm && (
-        <div className="form-section">
-          <h3 style={{ marginBottom: 10 }}>
+      <div className="form-section">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <h3 style={{ margin: 0 }}>
             {editingId ? "Edit Member" : "Add New Member"}
           </h3>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              if (showForm || editingId) {
+                resetForm();
+              } else {
+                setShowForm(true);
+              }
+            }}
+          >
+            {showForm || editingId ? "Hide Form" : "Add New Member"}
+          </button>
+        </div>
+
+        {(showForm || editingId) && (
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
               <div className="form-field">
@@ -162,7 +171,7 @@ function Members() {
               <button type="submit" className="btn btn-primary">
                 {editingId ? "Update Member" : "Create Member"}
               </button>
-              {editingId && (
+              {(editingId || showForm) && (
                 <button
                   type="button"
                   className="btn btn-outline"
@@ -173,8 +182,8 @@ function Members() {
               )}
             </div>
           </form>
-        </div>
-      )}
+        )}
+      </div>
 
       {loading ? (
         <div>Loading members…</div>
@@ -194,7 +203,6 @@ function Members() {
             </thead>
             <tbody>
               {members.map((m) => (
-                // key must also use user_id
                 <tr key={m.user_id}>
                   <td>{m.user_id}</td>
                   <td>

@@ -1,5 +1,8 @@
 // src/App.js
 import React, { useState } from "react";
+import "./index.css";
+
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Classes from "./pages/Classes";
 import Members from "./pages/Members";
@@ -7,112 +10,91 @@ import Payments from "./pages/Payments";
 import Trainers from "./pages/Trainers";
 import Registrations from "./pages/Registrations";
 import Workouts from "./pages/Workouts";
-import Login from "./pages/Login";
-import "./index.css";
+
+const ALL_TABS = [
+  { id: "dashboard", label: "Dashboard", roles: ["admin", "trainer", "member"] },
+  { id: "classes", label: "Classes", roles: ["admin", "trainer", "member"] },
+  { id: "members", label: "Members", roles: ["admin"] },
+  { id: "payments", label: "Payments", roles: ["admin"] },
+  { id: "trainers", label: "Trainers", roles: ["admin"] },
+  { id: "registrations", label: "Registrations", roles: ["admin", "trainer", "member"] },
+  { id: "workouts", label: "Workouts", roles: ["admin", "trainer", "member"] },
+];
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [activePage, setActivePage] = useState("dashboard");
+  const [currentUser, setCurrentUser] = useState(() => {
+    const raw = localStorage.getItem("fittrack_user");
+    return raw ? JSON.parse(raw) : null;
+  });
 
-  const handleLogin = (userInfo) => {
-    setUser(userInfo);
-    setActivePage("dashboard");
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    localStorage.setItem("fittrack_user", JSON.stringify(user));
+    setActiveTab("dashboard");
   };
 
   const handleLogout = () => {
-    setUser(null);
-    setActivePage("login");
+    localStorage.removeItem("fittrack_user");
+    setCurrentUser(null);
   };
 
-  const renderPage = () => {
-    if (!user) {
-      return <Login onLogin={handleLogin} />;
-    }
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} />;
+  }
 
-    switch (activePage) {
+  const role = currentUser.role || "member";
+  const visibleTabs = ALL_TABS.filter((t) => t.roles.includes(role));
+
+  const renderContent = () => {
+    switch (activeTab) {
       case "dashboard":
-        return <Dashboard />;
+        return <Dashboard currentUser={currentUser} />;
       case "classes":
-        return <Classes />;
+        return <Classes currentUser={currentUser} />;
       case "members":
-        return <Members />;
+        return <Members currentUser={currentUser} />;
       case "payments":
-        return <Payments />;
+        return <Payments currentUser={currentUser} />;
       case "trainers":
-        return <Trainers />;
+        return <Trainers currentUser={currentUser} />;
       case "registrations":
-        return <Registrations />;
+        return <Registrations currentUser={currentUser} />;
       case "workouts":
-        return <Workouts />;
+        return <Workouts currentUser={currentUser} />;
       default:
-        return <Dashboard />;
+        return null;
     }
   };
 
   return (
     <div className="app-root">
-      {user && (
-        <header className="top-bar">
-          <div className="top-bar-left">
-            <h1 className="app-title">FitTrack Admin</h1>
-            <span className="user-pill">(admin)</span>
-          </div>
-          <button className="btn btn-danger" onClick={handleLogout}>
-            Logout
-          </button>
-        </header>
-      )}
+      <header className="top-bar">
+        <div className="top-bar-left">
+          <div className="app-title">FitTrack Admin</div>
+          <span className="user-pill">
+            ({currentUser.role}) • ID: {currentUser.user_id}
+          </span>
+        </div>
+        <button onClick={handleLogout} className="btn btn-danger">
+          Logout
+        </button>
+      </header>
 
-      {user && (
-        <nav className="nav-tabs">
+      <nav className="nav-tabs">
+        {visibleTabs.map((tab) => (
           <button
-            className={activePage === "dashboard" ? "tab active-tab" : "tab"}
-            onClick={() => setActivePage("dashboard")}
+            key={tab.id}
+            className={`tab ${activeTab === tab.id ? "active-tab" : ""}`}
+            onClick={() => setActiveTab(tab.id)}
           >
-            Dashboard
+            {tab.label}
           </button>
-          <button
-            className={activePage === "classes" ? "tab active-tab" : "tab"}
-            onClick={() => setActivePage("classes")}
-          >
-            Classes
-          </button>
-          <button
-            className={activePage === "members" ? "tab active-tab" : "tab"}
-            onClick={() => setActivePage("members")}
-          >
-            Members
-          </button>
-          <button
-            className={activePage === "payments" ? "tab active-tab" : "tab"}
-            onClick={() => setActivePage("payments")}
-          >
-            Payments
-          </button>
-          <button
-            className={activePage === "trainers" ? "tab active-tab" : "tab"}
-            onClick={() => setActivePage("trainers")}
-          >
-            Trainers
-          </button>
-          <button
-            className={
-              activePage === "registrations" ? "tab active-tab" : "tab"
-            }
-            onClick={() => setActivePage("registrations")}
-          >
-            Registrations
-          </button>
-          <button
-            className={activePage === "workouts" ? "tab active-tab" : "tab"}
-            onClick={() => setActivePage("workouts")}
-          >
-            Workouts
-          </button>
-        </nav>
-      )}
+        ))}
+      </nav>
 
-      <main className="page-container">{renderPage()}</main>
+      <main className="page-container">{renderContent()}</main>
     </div>
   );
 }

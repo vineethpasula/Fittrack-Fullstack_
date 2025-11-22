@@ -19,7 +19,7 @@ function Trainers() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [showForm, setShowForm] = useState(false); // NEW: toggle form visibility
+  const [showForm, setShowForm] = useState(false);
 
   const load = async () => {
     try {
@@ -45,7 +45,7 @@ function Trainers() {
   const resetForm = () => {
     setForm(emptyTrainer);
     setEditingId(null);
-    
+    setShowForm(false);
   };
 
   const handleSubmit = async (e) => {
@@ -77,7 +77,6 @@ function Trainers() {
 
   const handleEdit = (t) => {
     setEditingId(t.trainer_id);
-    setShowForm(true); // NEW: open form when editing
     setForm({
       user_id: t.user_id ?? "",
       specialty: t.specialty ?? "",
@@ -86,6 +85,7 @@ function Trainers() {
           ? String(t.experience_years)
           : "",
     });
+    setShowForm(true);
   };
 
   const handleDelete = async (t) => {
@@ -115,70 +115,85 @@ function Trainers() {
         Total Trainers: <strong>{totalTrainers}</strong>
       </div>
 
-      {/* Toggle button for the form */}
-      <button
-        className="btn btn-primary"
-        style={{ marginBottom: 16 }}
-        onClick={() => setShowForm((prev) => !prev)}
-      >
-        {showForm ? "Hide Trainer Form" : "Add New Trainer"}
-      </button>
-
-      {/* Conditionally render form */}
-      {showForm && (
-        <div className="form-section">
-          <h3 style={{ marginBottom: 10 }}>
+      <div className="form-section">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <h3 style={{ margin: 0 }}>
             {editingId ? "Edit Trainer" : "Add New Trainer"}
           </h3>
-          {err && <div style={{ color: "red", marginBottom: 8 }}>{err}</div>}
-          <form onSubmit={handleSubmit}>
-            <div className="form-grid">
-              <div className="form-field">
-                <label>User ID</label>
-                <input
-                  type="number"
-                  value={form.user_id}
-                  onChange={handleChange("user_id")}
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label>Specialty</label>
-                <input
-                  value={form.specialty}
-                  onChange={handleChange("specialty")}
-                  placeholder="Strength, Yoga, Cardio..."
-                  required
-                />
-              </div>
-              <div className="form-field">
-                <label>Experience (Years)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.experience_years}
-                  onChange={handleChange("experience_years")}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="submit" className="btn btn-primary">
-                {editingId ? "Update Trainer" : "Create Trainer"}
-              </button>
-              {editingId && (
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={resetForm}
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              if (showForm || editingId) {
+                resetForm();
+              } else {
+                setShowForm(true);
+              }
+            }}
+          >
+            {showForm || editingId ? "Hide Form" : "Add New Trainer"}
+          </button>
         </div>
-      )}
+
+        {(showForm || editingId) && (
+          <>
+            {err && <div style={{ color: "red", marginBottom: 8 }}>{err}</div>}
+            <form onSubmit={handleSubmit}>
+              <div className="form-grid">
+                <div className="form-field">
+                  <label>User ID</label>
+                  <input
+                    type="number"
+                    value={form.user_id}
+                    onChange={handleChange("user_id")}
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Specialty</label>
+                  <input
+                    value={form.specialty}
+                    onChange={handleChange("specialty")}
+                    placeholder="Strength, Yoga, Cardio..."
+                    required
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Experience (Years)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.experience_years}
+                    onChange={handleChange("experience_years")}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="submit" className="btn btn-primary">
+                  {editingId ? "Update Trainer" : "Create Trainer"}
+                </button>
+                {(editingId || showForm) && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={resetForm}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </form>
+          </>
+        )}
+      </div>
 
       {loading ? (
         <div>Loading trainers…</div>
