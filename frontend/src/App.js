@@ -72,7 +72,7 @@ function App() {
     <div className="app-root">
       <header className="top-bar">
         <div className="top-bar-left">
-          <div className="app-title">FitTrack Admin</div>
+          <div className="app-title">FitTrack</div>
           <span className="user-pill">
             ({currentUser.role}) • ID: {currentUser.user_id}
           </span>
