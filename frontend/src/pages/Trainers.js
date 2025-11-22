@@ -45,7 +45,7 @@ function Trainers() {
   const resetForm = () => {
     setForm(emptyTrainer);
     setEditingId(null);
-    // keep showForm as it is; user controls it with the button
+    
   };
 
   const handleSubmit = async (e) => {
